@@ -86,6 +86,7 @@
             hide_session_name = true;
           };
         };
+        default_shell = "zsh";
       };
     };
   };
