@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb for working on this NixOS flake: fetches the locked
+# flake inputs, installs nixfmt from the pinned nixpkgs, and evaluates the
+# system configuration so later evaluations start from a warm store.
+# Nix (with flakes enabled) is preinstalled in the orb base image.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+	local name="$1"
+	shift
+	echo "==> $name"
+	local start=$SECONDS
+	"$@"
+	echo "<== $name ($((SECONDS - start))s)"
+}
+
+if ! command -v nix >/dev/null; then
+	echo "nix is not installed in this orb; expected it in the base image" >&2
+	exit 1
+fi
+
+step "Fetch locked flake inputs" nix flake archive
+
+# Packages added with `nix profile add` are not on PATH in orb shells
+# (~/.env resets PATH), so link nixfmt into ~/.local/bin instead. The out-link
+# is a GC root, and rebuilding it follows nixpkgs bumps in flake.lock.
+install_nixfmt() {
+	local rev root
+	rev="$(jq -r .nodes.nixpkgs.locked.rev flake.lock)"
+	root="$HOME/.local/state/orb-tools"
+	mkdir -p "$root" "$HOME/.local/bin"
+	nix build --out-link "$root/nixfmt" "github:nixos/nixpkgs/$rev#nixfmt-rfc-style"
+	ln -sfn "$root/nixfmt/bin/nixfmt" "$HOME/.local/bin/nixfmt"
+}
+step "Install nixfmt from pinned nixpkgs" install_nixfmt
+
+# Evaluation fetches nixpkgs and module sources and instantiates derivations.
+# A broken configuration on the default branch should not block the snapshot.
+eval_system() {
+	nix eval --raw .#nixosConfigurations.nixos.config.system.build.toplevel.drvPath ||
+		echo "warning: evaluating nixosConfigurations.nixos failed" >&2
+	echo
+}
+step "Evaluate nixosConfigurations.nixos" eval_system
