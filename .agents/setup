@@ -28,7 +28,7 @@ step "Fetch locked flake inputs" nix flake archive
 # is a GC root, and rebuilding it follows nixpkgs bumps in flake.lock.
 install_nixfmt() {
 	local rev root
-	rev="$(jq -r .nodes.nixpkgs.locked.rev flake.lock)"
+	rev="$(jq -r '.nodes[.nodes.root.inputs.nixpkgs].locked.rev' flake.lock)"
 	root="$HOME/.local/state/orb-tools"
 	mkdir -p "$root" "$HOME/.local/bin"
 	nix build --out-link "$root/nixfmt" "github:nixos/nixpkgs/$rev#nixfmt-rfc-style"

@@ -9,25 +9,29 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nvf = {
-      url = "github:notashelf/nvf";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    dotfiles.url = "github:alDuncanson/dotfiles";
   };
 
   outputs =
-    {
+    inputs@{
       nixpkgs,
       home-manager,
-      nvf,
+      dotfiles,
       ...
     }:
+    let
+      system = "x86_64-linux";
+      dotfilesForSystem = dotfiles.inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+        imports = [ dotfiles.flakeModules.default ];
+        systems = [ system ];
+      };
+    in
     {
       nixosConfigurations."nixos" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+        inherit system;
+        specialArgs.neovim = dotfilesForSystem.packages.${system}.neovim;
         modules = [
           ./configuration.nix
-          nvf.nixosModules.default
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
