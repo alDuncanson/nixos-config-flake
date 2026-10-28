@@ -1,4 +1,9 @@
-{ pkgs, neovim, ... }:
+{
+  pkgs,
+  neovim,
+  amp,
+  ...
+}:
 
 {
   imports = [
@@ -45,7 +50,6 @@
     settings.default_session.command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --remember --cmd sway";
   };
 
-  services.printing.enable = true;
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -74,11 +78,21 @@
     pkgs.lazygit
     pkgs.ripgrep
     pkgs.fd
+    amp
   ];
 
   environment.variables.EDITOR = "nvim";
 
   system.stateVersion = "24.11";
+
+  boot.loader.systemd-boot.configurationLimit = 10;
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 14d";
+  };
+  nix.optimise.automatic = true;
 
   nix.settings.experimental-features = [
     "nix-command"
